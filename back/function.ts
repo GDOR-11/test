@@ -4,7 +4,7 @@ import { getStore } from "@netlify/blobs";
 export default async (req: Request, context: Context) => {
     console.log("BEGIN");
     const store = getStore("data");
-    let data = await store.get("data", { type: "text" });
+    let data = await store.get("data", { type: "text", consistency: "strong" });
     console.log(data);
     data ??= "0";
     data = Number(data) + 1 + "";
