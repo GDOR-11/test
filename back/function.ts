@@ -1,5 +1,4 @@
 import type { Config, Context } from "@netlify/functions";
-import fs from "fs/promises";
 import { getStore } from "@netlify/blobs";
 
 export default async (req: Request, context: Context) => {
