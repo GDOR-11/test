@@ -1,3 +1,5 @@
+import { getStore } from "@netlify/blobs";
+import { Context } from "@netlify/functions";
 import Crypto from "crypto";
 import { Maybe } from "true-myth";
 
@@ -6,37 +8,48 @@ type Session = {
     expiration: number
 };
 
-const sessions: { [id: string]: Session } = {};
+const sessions = getStore("sessions");
+
+async function getSession(session_id: string): Promise<Session | null> {
+    return await sessions.get(session_id, { consistency: "strong", type: "json" }) as Session | null;
+}
+async function setSession(session_id: string, session: Session) {
+    await sessions.setJSON(session_id, session);
+}
 
 // delete expired sesssions
-setInterval(() => {
-    for (let session_id in sessions) {
-        if (sessions[session_id].expiration > Date.now()) {
-            delete sessions[session_id];
+setInterval(async () => {
+    for (let session_id in (await sessions.list()).blobs) {
+        if (Date.now() > (await getSession(session_id))!.expiration) {
+            await sessions.delete(session_id);
         }
     }
 }, 60000);
 
-export function generateSessionId(username: string): string {
+export async function generateSessionId(username: string): Promise<string> {
     let session_id: string;
     do {
         session_id = Crypto.randomInt(99999999999999).toString().padStart(14, "0");
-    } while (sessions[session_id] !== undefined);
-    sessions[session_id] = {
+    } while (await getSession(session_id) !== null);
+    await setSession(session_id, {
         username,
         expiration: Date.now() + 604800000
-    };
+    });
     return session_id;
 }
-export function appendSessionCookies(headers: Headers, session_id: string, prev_session_id?: string) {
-    headers.append("Set-Cookie", `__Host-Http-sessionid=${session_id}; Path=/; Secure; HttpOnly; SameSite=Strictl; Max-Age=604800`);
-    if (prev_session_id) {
-        delete sessions[prev_session_id];
-        headers.append("Set-Cookie", `__Host-Http-sessionid=${prev_session_id}; Secure; HttpOnly; SameSite=Strict; Max-Age=0`);
-    }
+export function setCookies(context: Context, session_id: string) {
+    context.cookies.set({
+        name: "__Host-Http-sessionid",
+        value: session_id,
+        path: "/",
+        secure: true,
+        httpOnly: true,
+        sameSite: "Strict",
+        maxAge: 604800
+    });
 }
-export function validateSessionId(session_id: string): Maybe<string> {
-    const session = sessions[session_id];
-    if (!session || session.expiration > Date.now()) return Maybe.nothing();
+export async function validateSessionId(session_id: string): Promise<Maybe<string>> {
+    const session = await getSession(session_id);
+    if (session === null || Date.now() > session.expiration) return Maybe.nothing();
     return Maybe.just(session.username);
 }
