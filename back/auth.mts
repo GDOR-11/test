@@ -5,8 +5,15 @@ import { generateSessionId, setCookies, validateSessionId } from "./util/session
 const actions: { readonly [action: string]: (req: Request, context: Context) => Promise<Response> } = {
     async register(req, context) {
         const data = (await req.text()).split("&").map(s => s.split("="));
-        const username = data.find(pair => pair[0] === "username")![1];
-        const password = data.find(pair => pair[0] === "password")![1];
+        const username = data.find(pair => pair[0] === "username")?.[1];
+        const password = data.find(pair => pair[0] === "password")?.[1];
+
+        if (username === undefined || password === undefined) {
+            return new Response("", { status: 400 });
+        }
+        if (username.length === 0) {
+            return new Response("<h1>nome inválido</h1>", { status: 400 });
+        }
 
         return (await register_user(username, password)).match({
             async Ok(_user) {
@@ -24,8 +31,12 @@ const actions: { readonly [action: string]: (req: Request, context: Context) => 
 
     async login(req, context) {
         const data = (await req.text()).split("&").map(s => s.split("="));
-        const username = data.find(pair => pair[0] === "username")![1];
-        const password = data.find(pair => pair[0] === "password")![1];
+        const username = data.find(pair => pair[0] === "username")?.[1];
+        const password = data.find(pair => pair[0] === "password")?.[1];
+
+        if (username === undefined || password === undefined) {
+            return new Response("", { status: 400 });
+        }
 
         const user = await get_user(username);
         const success = user.map(async user => await check_user_password(user, password));
@@ -44,6 +55,17 @@ const actions: { readonly [action: string]: (req: Request, context: Context) => 
             },
             async Err(_error) {
                 return new Response("<h1>nome de usuário ou senha errada</h1>", { status: 401 });
+            }
+        });
+    },
+
+    async getuser(_req, context) {
+        return (await validateSessionId(context)).match({
+            Just(username) {
+                return new Response(username, { status: 200 });
+            },
+            Nothing() {
+                return new Response("", { status: 200 });
             }
         });
     }

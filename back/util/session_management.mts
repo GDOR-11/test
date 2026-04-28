@@ -17,14 +17,13 @@ async function setSession(session_id: string, session: Session) {
     await sessions.setJSON(session_id, session);
 }
 
-// delete expired sesssions
-setInterval(async () => {
-    for (let session_id in (await sessions.list()).blobs) {
+export async function cleanSessions() {
+    for (let { key: session_id } of (await sessions.list()).blobs) {
         if (Date.now() > (await getSession(session_id))!.expiration) {
             await sessions.delete(session_id);
         }
     }
-}, 60000);
+}
 
 export async function generateSessionId(username: string): Promise<string> {
     let session_id: string;
@@ -48,8 +47,12 @@ export function setCookies(context: Context, session_id: string) {
         maxAge: 604800
     });
 }
-export async function validateSessionId(session_id: string): Promise<Maybe<string>> {
+export async function validateSessionId(context: Context): Promise<Maybe<string>> {
+    const session_id = context.cookies.get("__Host-Http-sessionid");
+    if (session_id === undefined) return Maybe.nothing();
+
     const session = await getSession(session_id);
     if (session === null || Date.now() > session.expiration) return Maybe.nothing();
+
     return Maybe.just(session.username);
 }
