@@ -12,7 +12,7 @@ const actions: { readonly [action: string]: (req: Request, context: Context) => 
             return new Response("", { status: 400 });
         }
         if (username.length === 0) {
-            return new Response("<h1>nome inválido</h1>", { status: 400 });
+            return new Response("Nome inválido", { status: 400 });
         }
 
         return (await register_user(username, password)).match({
@@ -24,7 +24,7 @@ const actions: { readonly [action: string]: (req: Request, context: Context) => 
                 });
             },
             async Err(_error) {
-                return new Response("<h1>nome já existe</h1>", { status: 409 });
+                return new Response("Nome já existe", { status: 409 });
             }
         });
     },
@@ -50,11 +50,11 @@ const actions: { readonly [action: string]: (req: Request, context: Context) => 
                         headers: { "Location": "/" }
                     });
                 } else {
-                    return new Response("<h1>nome de usuário ou senha errada</h1>", { status: 401 });
+                    return new Response("Nome de usuário ou senha errada", { status: 401 });
                 }
             },
             async Err(_error) {
-                return new Response("<h1>nome de usuário ou senha errada</h1>", { status: 401 });
+                return new Response("Nome de usuário ou senha errada", { status: 401 });
             }
         });
     },
@@ -72,10 +72,11 @@ const actions: { readonly [action: string]: (req: Request, context: Context) => 
 };
 
 export default async (req: Request, context: Context) => {
-    const response = await actions[context.params["action"]!]?.(req, context);
-    return response ?? new Response("q porra q vc ta fazendo", { status: 404 });
+    const action = context.params["action"]!.split(".")[0].split("/")[0];
+    const response = await actions[action]?.(req, context);
+    return response ?? new Response("Ação inexistente", { status: 404 });
 };
 
 export const config: Config = {
-    path: "/api/auth/:action"
+    path: "/api/auth/:action/*?"
 };

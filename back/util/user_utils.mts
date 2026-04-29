@@ -20,6 +20,7 @@ export async function get_user(username: string): Promise<Result<User, GetUserEr
     }
     return ok(user);
 }
+
 export enum RegisterError {
     UsernameExists
 }
@@ -32,6 +33,7 @@ export async function register_user(username: string, password: string): Promise
     await user_store.setJSON(username, user);
     return ok(user);
 }
+
 export async function check_user_password(user: User, password: string): Promise<boolean> {
     return await bcrypt.compare(password, user.password_hash);
 }
